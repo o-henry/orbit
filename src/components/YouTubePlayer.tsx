@@ -98,6 +98,17 @@ const YouTubePlayer: React.FC<YouTubePlayerProps> = ({
     return Math.floor(endSec);
   }, [endSec]);
 
+  const safeDestroyPlayer = () => {
+    if (!playerRef.current) return;
+    try {
+      playerRef.current.destroy();
+    } catch {
+      // YouTube API can throw during teardown when its iframe already detached.
+    } finally {
+      playerRef.current = null;
+    }
+  };
+
   useEffect(() => {
     let cancelled = false;
 
@@ -107,12 +118,14 @@ const YouTubePlayer: React.FC<YouTubePlayerProps> = ({
     loadYouTubeIframeApi().then(() => {
       if (cancelled || !hostRef.current || !window.YT?.Player) return;
 
-      if (playerRef.current) {
-        playerRef.current.destroy();
-        playerRef.current = null;
-      }
+      safeDestroyPlayer();
+      hostRef.current.innerHTML = "";
 
-      playerRef.current = new window.YT.Player(hostRef.current, {
+      const mountNode = document.createElement("div");
+      mountNode.className = "h-full w-full rounded-[inherit]";
+      hostRef.current.appendChild(mountNode);
+
+      playerRef.current = new window.YT.Player(mountNode, {
         videoId,
         playerVars: {
           autoplay: autoplay ? 1 : 0,
@@ -149,9 +162,9 @@ const YouTubePlayer: React.FC<YouTubePlayerProps> = ({
         window.clearInterval(intervalRef.current);
         intervalRef.current = null;
       }
-      if (playerRef.current) {
-        playerRef.current.destroy();
-        playerRef.current = null;
+      safeDestroyPlayer();
+      if (hostRef.current) {
+        hostRef.current.innerHTML = "";
       }
     };
   }, [videoId]);
