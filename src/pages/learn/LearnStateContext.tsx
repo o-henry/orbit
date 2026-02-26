@@ -243,6 +243,9 @@ export const LearnStateProvider: React.FC<LearnStateProviderProps> = ({ clipId, 
       setMigrationRequired(status.migrationRequired);
       setClip(foundClip || null);
       setComprehensionRating(foundClip?.comprehensionAvg ? clampComprehensionRating(foundClip.comprehensionAvg) : undefined);
+      setNoticingFocusState("");
+      setNoticedExamples([]);
+      setAiFeedbackDraftState(null);
       setSavedItems(memories.sort((a, b) => b.createdAt - a.createdAt));
 
       const dismissedGuide = await getMetaValue<boolean>(TRANSCRIPT_GUIDE_DISMISSED_KEY, false);

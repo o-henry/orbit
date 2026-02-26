@@ -7,8 +7,7 @@ import ExternalAiAskBar from "@/components/ai/ExternalAiAskBar";
 import { useLearnState } from "@/pages/learn/LearnStateContext";
 import { formatTime } from "@/domain/time";
 import { cn } from "@/lib/utils";
-import { getSettings } from "@/lib/storage";
-import { getNoticingPresets, normalizeNoticingFocus } from "@/domain/noticing";
+import { getAdaptiveNoticingPresets, normalizeNoticingFocus } from "@/domain/noticing";
 import { parseAiResponse } from "@/domain/aiResponseParser";
 import { trackSessionEvent } from "@/lib/sessionTracker";
 
@@ -17,6 +16,8 @@ const PracticePanel: React.FC = () => {
     clip,
     currentRef,
     heardSentence,
+    selectedTranscriptText,
+    transcriptLines,
     notes,
     comprehensionRating,
     noticingFocus,
@@ -31,20 +32,22 @@ const PracticePanel: React.FC = () => {
     handleSaveMemory,
     selectSavedMemory,
   } = useLearnState();
-  const [targetLanguage, setTargetLanguage] = useState("en");
   const [customFocus, setCustomFocus] = useState(noticingFocus);
   const [aiResponseRaw, setAiResponseRaw] = useState("");
   const [aiParseError, setAiParseError] = useState<string | null>(null);
 
   useEffect(() => {
-    setTargetLanguage(getSettings().targetLanguage);
-  }, []);
-
-  useEffect(() => {
     setCustomFocus(noticingFocus);
   }, [noticingFocus]);
 
-  const focusPresets = useMemo(() => getNoticingPresets(targetLanguage), [targetLanguage]);
+  const focusPresets = useMemo(
+    () =>
+      getAdaptiveNoticingPresets({
+        transcriptLines,
+        selectedText: heardSentence || selectedTranscriptText,
+      }),
+    [transcriptLines, heardSentence, selectedTranscriptText]
+  );
 
   const handleParseAiResponse = () => {
     const parsed = parseAiResponse(aiResponseRaw);
