@@ -13,9 +13,11 @@ const PracticePanel: React.FC = () => {
     currentRef,
     heardSentence,
     notes,
+    comprehensionRating,
     saveError,
     savedItems,
     setNotes,
+    rateComprehension,
     handleSaveMemory,
     selectSavedMemory,
   } = useLearnState();
@@ -40,6 +42,24 @@ const PracticePanel: React.FC = () => {
             >
               {heardSentence || "자막에서 학습할 표현을 선택하세요."}
             </p>
+          </div>
+
+          <div className="space-y-1">
+            <p className="text-[11px] font-medium text-muted-foreground">이 구간 이해도 (1~5)</p>
+            <div className="grid grid-cols-5 gap-1">
+              {[1, 2, 3, 4, 5].map((score) => (
+                <Button
+                  key={score}
+                  type="button"
+                  size="sm"
+                  variant={comprehensionRating === score ? "default" : "outline"}
+                  className="h-8 px-0"
+                  onClick={() => void rateComprehension(score)}
+                >
+                  {score}
+                </Button>
+              ))}
+            </div>
           </div>
 
           <Textarea

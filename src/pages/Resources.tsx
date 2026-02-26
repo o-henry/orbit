@@ -4,7 +4,7 @@ import BottomNav from "@/components/BottomNav";
 import PageShell from "@/components/PageShell";
 import { Button } from "@/components/ui/button";
 import { LEARNING_RESOURCE_DOC, LearningResourceSection, ResourceLanguage } from "@/data/learningResources";
-import { DEFAULT_SETTINGS, getSettings } from "@/lib/storage";
+import { DEFAULT_SETTINGS, getClips, getSettings } from "@/lib/storage";
 
 const LEVELS: Array<LearningResourceSection["level"]> = ["입문", "초급", "중급", "고급"];
 const KO_CHUNK_REGEX = /[\u3131-\u318E\uAC00-\uD7A3]+|[^\u3131-\u318E\uAC00-\uD7A3]+/g;
@@ -25,16 +25,52 @@ const renderTitleByLanguage = (title: string) => {
   ));
 };
 
+const nextLevel = (
+  current: LearningResourceSection["level"],
+  direction: "up" | "down"
+): LearningResourceSection["level"] => {
+  const idx = LEVELS.indexOf(current);
+  if (idx < 0) return current;
+  if (direction === "up") return LEVELS[Math.min(LEVELS.length - 1, idx + 1)];
+  return LEVELS[Math.max(0, idx - 1)];
+};
+
 const ResourcesPage: React.FC = () => {
   const [language, setLanguage] = useState<ResourceLanguage>(() => targetLanguageToResourceLanguage(DEFAULT_SETTINGS.targetLanguage));
   const [level, setLevel] = useState<LearningResourceSection["level"]>(() => {
     return LEVELS.includes(DEFAULT_SETTINGS.learnerLevel) ? DEFAULT_SETTINGS.learnerLevel : "초급";
   });
+  const [fitHint, setFitHint] = useState<string>("");
 
   useEffect(() => {
-    const settings = getSettings();
-    setLanguage(targetLanguageToResourceLanguage(settings.targetLanguage));
-    setLevel(LEVELS.includes(settings.learnerLevel) ? settings.learnerLevel : "초급");
+    const load = async () => {
+      const settings = getSettings();
+      const initialLanguage = targetLanguageToResourceLanguage(settings.targetLanguage);
+      const initialLevel = LEVELS.includes(settings.learnerLevel) ? settings.learnerLevel : "초급";
+      setLanguage(initialLanguage);
+      setLevel(initialLevel);
+
+      const clips = await getClips();
+      const tooHardCount = clips.filter((clip) => clip.fitBand === "too_hard").length;
+      const tooEasyCount = clips.filter((clip) => clip.fitBand === "too_easy").length;
+      const fitCount = clips.filter((clip) => clip.fitBand === "fit").length;
+
+      if (tooHardCount > Math.max(tooEasyCount, fitCount)) {
+        setLevel(nextLevel(initialLevel, "down"));
+        setFitHint("최근 학습 기록 기준으로 난이도를 한 단계 낮춰 추천합니다.");
+        return;
+      }
+
+      if (tooEasyCount > Math.max(tooHardCount, fitCount)) {
+        setLevel(nextLevel(initialLevel, "up"));
+        setFitHint("최근 학습 기록 기준으로 난이도를 한 단계 높여 추천합니다.");
+        return;
+      }
+
+      setFitHint("");
+    };
+
+    void load();
   }, []);
 
   const currentSection = useMemo(
@@ -51,6 +87,7 @@ const ResourcesPage: React.FC = () => {
           <div className="space-y-2">
             <p className="text-sm font-medium">언어와 레벨을 선택하세요</p>
             <p className="text-xs text-muted-foreground">필요한 난이도만 빠르게 선택해서 바로 학습 리소스를 확인하세요.</p>
+            {fitHint && <p className="text-xs text-primary">{fitHint}</p>}
           </div>
 
           <div className="grid grid-cols-2 gap-2 rounded-[var(--radius)] bg-secondary/70 p-1">

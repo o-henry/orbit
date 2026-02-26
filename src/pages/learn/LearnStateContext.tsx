@@ -5,6 +5,7 @@ import {
   getMemoryByClipId,
   getSrsCardByMemoryId,
   getStorageStatus,
+  saveClip,
   saveMemoryItem,
   saveSrsCard,
 } from "@/lib/storage";
@@ -16,6 +17,7 @@ import { formatTime, parseTime } from "@/domain/time";
 import { getMetaValue, setMetaValue } from "@/storage/metaRepo";
 import { toast } from "sonner";
 import { trackSavedMemory, trackSessionEvent } from "@/lib/sessionTracker";
+import { clampComprehensionRating, resolveFitBand, updateComprehensionAverage } from "@/domain/comprehension";
 
 const TRANSCRIPT_GUIDE_DISMISSED_KEY = "dlb:transcript:guide:dismissed";
 const transcriptStorageKey = (clipId: string) => `dlb:transcript:${clipId}`;
@@ -66,6 +68,7 @@ interface LearnStateContextValue {
   heardSentence: string;
   notes: string;
   confidence: 1 | 2 | 3 | 4 | 5 | undefined;
+  comprehensionRating: number | undefined;
   saveError: string | null;
   embedDisabled: boolean;
   savedItems: MemoryItem[];
@@ -83,6 +86,7 @@ interface LearnStateContextValue {
   setHeardSentence: (value: string) => void;
   setNotes: (value: string) => void;
   setConfidence: (value: 1 | 2 | 3 | 4 | 5 | undefined) => void;
+  rateComprehension: (rating: number) => Promise<void>;
   setEmbedDisabled: (value: boolean) => void;
 
   applyRange: (start: number, end: number | null, options?: { requestAutoplay?: boolean }) => void;
@@ -148,6 +152,7 @@ export const LearnStateProvider: React.FC<LearnStateProviderProps> = ({ clipId, 
   const [heardSentence, setHeardSentence] = useState("");
   const [notes, setNotes] = useState("");
   const [confidence, setConfidence] = useState<1 | 2 | 3 | 4 | 5 | undefined>(undefined);
+  const [comprehensionRating, setComprehensionRating] = useState<number | undefined>(undefined);
 
   const [saveError, setSaveError] = useState<string | null>(null);
   const [embedDisabled, setEmbedDisabled] = useState(false);
@@ -228,6 +233,7 @@ export const LearnStateProvider: React.FC<LearnStateProviderProps> = ({ clipId, 
 
       setMigrationRequired(status.migrationRequired);
       setClip(foundClip || null);
+      setComprehensionRating(foundClip?.comprehensionAvg ? clampComprehensionRating(foundClip.comprehensionAvg) : undefined);
       setSavedItems(memories.sort((a, b) => b.createdAt - a.createdAt));
 
       const dismissedGuide = await getMetaValue<boolean>(TRANSCRIPT_GUIDE_DISMISSED_KEY, false);
@@ -494,6 +500,26 @@ export const LearnStateProvider: React.FC<LearnStateProviderProps> = ({ clipId, 
     }
   };
 
+  const rateComprehension = async (rating: number) => {
+    if (!clip) return;
+    const safeRating = clampComprehensionRating(rating);
+    const nextAverage = updateComprehensionAverage(clip.comprehensionAvg, safeRating);
+    const nextBand = resolveFitBand(nextAverage);
+    const updatedClip: Clip = {
+      ...clip,
+      comprehensionAvg: nextAverage,
+      fitBand: nextBand,
+    };
+
+    setComprehensionRating(safeRating);
+    setClip(updatedClip);
+    try {
+      await saveClip(updatedClip);
+    } catch {
+      toast.error("이해도 저장에 실패했습니다. 다시 시도해주세요.");
+    }
+  };
+
   const syncSelectedExpression = (text: string) => {
     const selected = text.trim();
     setSelectedTranscriptTextState(selected);
@@ -635,6 +661,7 @@ export const LearnStateProvider: React.FC<LearnStateProviderProps> = ({ clipId, 
     heardSentence,
     notes,
     confidence,
+    comprehensionRating,
     saveError,
     embedDisabled,
     savedItems,
@@ -652,6 +679,7 @@ export const LearnStateProvider: React.FC<LearnStateProviderProps> = ({ clipId, 
     setHeardSentence,
     setNotes,
     setConfidence,
+    rateComprehension,
     setEmbedDisabled,
 
     applyRange,

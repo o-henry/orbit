@@ -5,6 +5,13 @@ import { DEFAULT_SETTINGS, getClips, getDueCards, getSettings } from "@/lib/stor
 import { Clip } from "@/lib/types";
 import BottomNav from "@/components/BottomNav";
 import PageShell from "@/components/PageShell";
+import { resolveFitBand, sortClipsByFitPriority } from "@/domain/comprehension";
+
+const FIT_LABEL: Record<"too_easy" | "fit" | "too_hard", string> = {
+  too_easy: "너무 쉬움",
+  fit: "적정 난이도",
+  too_hard: "도전 난이도",
+};
 
 const JA_CHUNK_REGEX = /[\u3040-\u30FF\u31F0-\u31FF\u3400-\u4DBF\u4E00-\u9FFF\uF900-\uFAFF\u3005\u3006\u30FC]+|[^\u3040-\u30FF\u31F0-\u31FF\u3400-\u4DBF\u4E00-\u9FFF\uF900-\uFAFF\u3005\u3006\u30FC]+/g;
 const HAS_JA_REGEX = /[\u3040-\u30FF\u31F0-\u31FF\u3400-\u4DBF\u4E00-\u9FFF\uF900-\uFAFF\u3005\u3006\u30FC]/;
@@ -40,7 +47,8 @@ const HomePage: React.FC = () => {
     load();
   }, []);
 
-  const todayClip = clips[0];
+  const todayClip = sortClipsByFitPriority(clips)[0];
+  const todayClipFitBand = todayClip ? (todayClip.fitBand || resolveFitBand(todayClip.comprehensionAvg)) : "fit";
 
   return (
     <>
@@ -80,11 +88,14 @@ const HomePage: React.FC = () => {
                   </div>
                 </div>
               </div>
-              <div className="space-y-4 p-4">
-                <p className="text-xs text-muted-foreground font-en">{todayClip.channel || settings.targetLanguage.toUpperCase()}</p>
-                <div className="rounded-[var(--radius-sm)] bg-secondary/75 p-3">
-                  <p className="text-xs text-muted-foreground">
-                    구간 반복, 표현 익히기, AI 질문, SRS 복습 순서로 학습합니다.
+                <div className="space-y-4 p-4">
+                  <p className="text-xs text-muted-foreground font-en">{todayClip.channel || settings.targetLanguage.toUpperCase()}</p>
+                  <div className="inline-flex rounded-[10px] border border-border/80 bg-secondary px-2 py-1 text-[11px] text-muted-foreground">
+                    {FIT_LABEL[todayClipFitBand]}
+                  </div>
+                  <div className="rounded-[var(--radius-sm)] bg-secondary/75 p-3">
+                    <p className="text-xs text-muted-foreground">
+                      구간 반복, 표현 익히기, AI 질문, SRS 복습 순서로 학습합니다.
                   </p>
                 </div>
                 <Button className="w-full h-11 font-ko-bold" onClick={() => navigate(`/learn/${todayClip.id}`)}>

@@ -9,6 +9,13 @@ import BottomNav from "@/components/BottomNav";
 import PageShell from "@/components/PageShell";
 import { Plus, ArrowUpRight, Trash, CircleAlert, ChevronRight } from "lucide-react";
 import { toast } from "sonner";
+import { resolveFitBand } from "@/domain/comprehension";
+
+const FIT_LABEL: Record<"too_easy" | "fit" | "too_hard", string> = {
+  too_easy: "너무 쉬움",
+  fit: "적정",
+  too_hard: "도전",
+};
 
 const Library: React.FC = () => {
   const navigate = useNavigate();
@@ -54,6 +61,8 @@ const Library: React.FC = () => {
       captionsAvailable: true,
       addedAt: new Date().toISOString(),
       embeddable: true,
+      fitBand: "fit",
+      comprehensionAvg: 3,
     };
 
     try {
@@ -137,6 +146,7 @@ const Library: React.FC = () => {
                 {clips.map((clip, idx) => {
                   const cardIndex = idx + 1;
                   const learnHref = `/learn/${clip.id}?mode=subtitle`;
+                  const fitBand = clip.fitBand || resolveFitBand(clip.comprehensionAvg);
 
                   return (
                     <article key={clip.id} className="overflow-hidden rounded-[16px] border border-border/80 bg-card p-4 shadow-[0_10px_26px_-18px_rgba(8,11,20,0.36)]">
@@ -178,6 +188,7 @@ const Library: React.FC = () => {
                           <div className="min-w-0">
                             <h3 className="line-clamp-2 font-ko-bold text-[14px] leading-[1.2] font-medium text-foreground">{clip.title || `YouTube 클립 (${clip.videoId})`}</h3>
                             <p className="mt-2 text-xs font-ko-bold text-muted-foreground line-clamp-1">{clip.channel || "채널 정보 없음"}</p>
+                            <p className="mt-1 text-[11px] text-muted-foreground">난이도 적합도: {FIT_LABEL[fitBand]}</p>
                             <p className="mt-3 text-[11px] text-muted-foreground">Open app ↗</p>
                           </div>
                           <p className="text-[44px] leading-none tracking-tight text-foreground font-ko-bold">{String(cardIndex).padStart(2, "0")}</p>
