@@ -21,6 +21,7 @@ import { CircleAlert, CirclePlay } from "lucide-react";
 import YouTubePlayer from "@/components/YouTubePlayer";
 import ExternalAiAskBar from "@/components/ai/ExternalAiAskBar";
 import { formatTime } from "@/domain/time";
+import { trackSessionEvent, trackStepCompletion } from "@/lib/sessionTracker";
 
 interface ReviewItem {
   card: SrsCard;
@@ -136,6 +137,8 @@ const SrsPage: React.FC = () => {
       };
 
       await saveSrsCard(updated);
+      void trackSessionEvent({ type: "srs_rate", seconds: 12, turns: 1 });
+      void trackStepCompletion({ D: true });
 
       const nextQueue = await loadData(false);
       if (nextQueue.length === 0) {
@@ -159,6 +162,7 @@ const SrsPage: React.FC = () => {
     };
 
     await saveMemoryItem(updatedMemory);
+    void trackSessionEvent({ type: "ai_feedback", seconds: 15, turns: 1 });
     const next = [...items];
     next[currentIdx] = { ...currentItem, memory: updatedMemory };
     setItems(next);

@@ -15,6 +15,7 @@ import { TranscriptLine } from "@/domain/transcript";
 import { formatTime, parseTime } from "@/domain/time";
 import { getMetaValue, setMetaValue } from "@/storage/metaRepo";
 import { toast } from "sonner";
+import { trackSavedMemory, trackSessionEvent } from "@/lib/sessionTracker";
 
 const TRANSCRIPT_GUIDE_DISMISSED_KEY = "dlb:transcript:guide:dismissed";
 const transcriptStorageKey = (clipId: string) => `dlb:transcript:${clipId}`;
@@ -206,6 +207,11 @@ export const LearnStateProvider: React.FC<LearnStateProviderProps> = ({ clipId, 
     setEndSec(normalized.endSec);
     syncInputs(normalized.startSec, normalized.endSec);
     setAutoPlaySelection(Boolean(options?.requestAutoplay));
+
+    if (options?.requestAutoplay) {
+      const loopSeconds = resolveEnd(normalized.startSec, normalized.endSec) - normalized.startSec;
+      void trackSessionEvent({ type: "segment_play", seconds: loopSeconds });
+    }
   };
 
   const clearAutoplayFlag = () => setAutoPlaySelection(false);
@@ -390,6 +396,8 @@ export const LearnStateProvider: React.FC<LearnStateProviderProps> = ({ clipId, 
 
     try {
       await saveMemoryAndCard(memory);
+      void trackSavedMemory({ savedCount: 1, stepsCompleted: { B: true } });
+      void trackSessionEvent({ type: "ai_feedback", seconds: 12, turns: 1 });
       setHeardSentence("");
       setNotes("");
       setSelectedTranscriptTextState("");
@@ -494,6 +502,7 @@ export const LearnStateProvider: React.FC<LearnStateProviderProps> = ({ clipId, 
 
   const activateTranscriptLine = (line: TranscriptLine) => {
     syncSelectedExpression(line.text);
+    void trackSessionEvent({ type: "transcript_activate", seconds: 8, noticingCount: 1 });
 
     if (line.startSec === undefined) return;
 
@@ -506,6 +515,7 @@ export const LearnStateProvider: React.FC<LearnStateProviderProps> = ({ clipId, 
   const activateTranscriptRange = (lines: TranscriptLine[]) => {
     const joined = lines.map((line) => line.text).join(" ").trim();
     syncSelectedExpression(joined);
+    void trackSessionEvent({ type: "transcript_activate", seconds: Math.max(8, lines.length * 3), noticingCount: 1 });
 
     const firstStart = lines.find((line) => line.startSec !== undefined)?.startSec;
     const lastEnd = [...lines].reverse().find((line) => line.endSec !== undefined)?.endSec;
@@ -539,6 +549,7 @@ export const LearnStateProvider: React.FC<LearnStateProviderProps> = ({ clipId, 
   };
 
   const jumpToPrevSegment = () => {
+    void trackSessionEvent({ type: "segment_nav", seconds: 5 });
     if (timedLines.length === 0) {
       jumpBySeconds(-5);
       return;
@@ -560,6 +571,7 @@ export const LearnStateProvider: React.FC<LearnStateProviderProps> = ({ clipId, 
   };
 
   const jumpToNextSegment = () => {
+    void trackSessionEvent({ type: "segment_nav", seconds: 5 });
     if (timedLines.length === 0) {
       jumpBySeconds(5);
       return;

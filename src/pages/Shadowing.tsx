@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { CircleAlert, CirclePlay, Check } from "lucide-react";
 import { formatTime } from "@/domain/time";
 import { cn } from "@/lib/utils";
+import { trackSessionEvent, trackStepCompletion } from "@/lib/sessionTracker";
 
 const shadowingStateKey = (clipId: string, startSec: number, endSec: number) => `dlb:shadowing:state:${clipId}:${startSec}:${endSec}`;
 const shadowingAudioKey = (clipId: string, startSec: number, endSec: number) => `dlb:shadowing:audio:${clipId}:${startSec}:${endSec}`;
@@ -180,6 +181,20 @@ const Shadowing: React.FC = () => {
     setChecked(next);
   };
 
+  const handleRecordingChange = (file: File | null) => {
+    setRecordedAudioFile(file);
+    if (!file) return;
+    void trackSessionEvent({ type: "shadowing_record", seconds: 20 });
+    void trackStepCompletion({ C: true });
+  };
+
+  const goToSrs = () => {
+    if (checked.size >= CHECKLIST.length) {
+      void trackSessionEvent({ type: "loop_cycle", seconds: 12, loopCount: 1 });
+    }
+    navigate("/srs");
+  };
+
   if (loading) {
     return (
       <PageShell title={SHADOWING_TITLE} showBack onBack={() => navigate(-1)} noBottomNav>
@@ -240,7 +255,7 @@ const Shadowing: React.FC = () => {
             </Button>
           </div>
 
-          <AudioRecorder value={recordedAudioFile} onRecordingChange={setRecordedAudioFile} />
+          <AudioRecorder value={recordedAudioFile} onRecordingChange={handleRecordingChange} />
         </div>
 
         <div className="ui-island w-full py-4 space-y-3">
@@ -292,7 +307,7 @@ const Shadowing: React.FC = () => {
           <Button type="button" variant="outline" onClick={() => navigate(`/learn/${clip.id}?start=${startSec}&end=${endSec}&mode=subtitle`)}>
             이전(학습)
           </Button>
-          <Button type="button" onClick={() => navigate("/srs")}>
+          <Button type="button" onClick={goToSrs}>
             다음(복습으로)
           </Button>
         </div>
