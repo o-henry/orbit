@@ -396,13 +396,8 @@ export const LearnStateProvider: React.FC<LearnStateProviderProps> = ({ clipId, 
     }
 
     const cleanNotes = notes.trim();
-    const normalizedFocus = normalizeNoticingFocus(noticingFocus);
     if (!safeUserText) {
       toast.error("자막에서 표현을 먼저 선택해주세요");
-      return;
-    }
-    if (!normalizedFocus) {
-      toast.error("오늘 포커스 1개를 먼저 선택해주세요");
       return;
     }
 
@@ -413,8 +408,6 @@ export const LearnStateProvider: React.FC<LearnStateProviderProps> = ({ clipId, 
       notes: cleanNotes || safeUserText,
       ...(safeUserText ? { userText: safeUserText } : {}),
       ...(confidence ? { confidence } : {}),
-      noticingFocus: normalizedFocus,
-      noticedExamples: noticedExamples.slice(0, 8),
       ...(aiFeedbackDraft ? { aiFeedback: aiFeedbackDraft } : {}),
       createdAt: now,
       updatedAt: now,
@@ -670,12 +663,6 @@ export const LearnStateProvider: React.FC<LearnStateProviderProps> = ({ clipId, 
   const selectSavedMemory = (item: MemoryItem) => {
     setLoopEnabled(true);
     applyRange(item.ref.startSec, item.ref.endSec, { requestAutoplay: true });
-    if (item.noticingFocus) {
-      setNoticingFocusState(item.noticingFocus);
-    }
-    if (item.noticedExamples?.length) {
-      setNoticedExamples(item.noticedExamples.slice(0, 8));
-    }
     setAiFeedbackDraftState(item.aiFeedback || null);
   };
 

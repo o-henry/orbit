@@ -297,16 +297,6 @@ const SrsPage: React.FC = () => {
                         ({formatTime(currentItem.memory.ref.startSec)} - {formatTime(currentItem.memory.ref.endSec)})
                       </p>
                       <p className="text-xs text-muted-foreground mt-2">구간 재생으로 실제 음성을 확인하세요.</p>
-                      {currentItem.memory.noticingFocus && (
-                        <p className="text-xs text-muted-foreground mt-2">
-                          오늘 포커스: <span className="font-medium text-foreground">{currentItem.memory.noticingFocus}</span>
-                        </p>
-                      )}
-                      {currentItem.memory.noticedExamples?.length ? (
-                        <p className="text-xs text-muted-foreground mt-1">
-                          포커스 매칭 예시 {currentItem.memory.noticedExamples.length}개
-                        </p>
-                      ) : null}
                       {currentItem.memory.aiFeedback?.correction && (
                         <div className="mt-2 rounded-[var(--radius-sm)] bg-secondary/65 px-2 py-1 text-xs text-muted-foreground">
                           교정 요약: <span className="text-foreground">{currentItem.memory.aiFeedback.correction}</span>

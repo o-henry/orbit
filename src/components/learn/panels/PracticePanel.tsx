@@ -1,13 +1,11 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
-import { Input } from "@/components/ui/input";
 import ExternalAiAskBar from "@/components/ai/ExternalAiAskBar";
 import { useLearnState } from "@/pages/learn/LearnStateContext";
 import { formatTime } from "@/domain/time";
 import { cn } from "@/lib/utils";
-import { getAdaptiveNoticingPresets, normalizeNoticingFocus } from "@/domain/noticing";
 import { parseAiResponse } from "@/domain/aiResponseParser";
 import { trackSessionEvent } from "@/lib/sessionTracker";
 
@@ -16,38 +14,19 @@ const PracticePanel: React.FC = () => {
     clip,
     currentRef,
     heardSentence,
-    selectedTranscriptText,
-    transcriptLines,
     notes,
     comprehensionRating,
-    noticingFocus,
-    noticedExamples,
     aiFeedbackDraft,
     saveError,
     savedItems,
     setNotes,
     rateComprehension,
-    setNoticingFocus,
     setAiFeedbackDraft,
     handleSaveMemory,
     selectSavedMemory,
   } = useLearnState();
-  const [customFocus, setCustomFocus] = useState(noticingFocus);
   const [aiResponseRaw, setAiResponseRaw] = useState("");
   const [aiParseError, setAiParseError] = useState<string | null>(null);
-
-  useEffect(() => {
-    setCustomFocus(noticingFocus);
-  }, [noticingFocus]);
-
-  const focusPresets = useMemo(
-    () =>
-      getAdaptiveNoticingPresets({
-        transcriptLines,
-        selectedText: heardSentence || selectedTranscriptText,
-      }),
-    [transcriptLines, heardSentence, selectedTranscriptText]
-  );
 
   const handleParseAiResponse = () => {
     const parsed = parseAiResponse(aiResponseRaw);
@@ -99,42 +78,6 @@ const PracticePanel: React.FC = () => {
                 </Button>
               ))}
             </div>
-          </div>
-
-          <div className="space-y-2">
-            <p className="text-[11px] font-medium text-muted-foreground">오늘 포커스 1개 (저장 필수)</p>
-            <div className="flex flex-wrap gap-1">
-              {focusPresets.map((preset) => (
-                <Button
-                  key={preset}
-                  type="button"
-                  size="sm"
-                  variant={noticingFocus === preset ? "default" : "outline"}
-                  className="h-7 px-2 text-[11px]"
-                  onClick={() => setNoticingFocus(preset)}
-                >
-                  {preset}
-                </Button>
-              ))}
-            </div>
-            <div className="flex gap-1">
-              <Input
-                value={customFocus}
-                onChange={(event) => setCustomFocus(event.target.value)}
-                placeholder="직접 입력 (예: gonna)"
-                className="h-8 text-xs"
-              />
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                className="h-8"
-                onClick={() => setNoticingFocus(normalizeNoticingFocus(customFocus))}
-              >
-                적용
-              </Button>
-            </div>
-            <p className="text-[11px] text-muted-foreground">매칭 예시 {noticedExamples.length}개</p>
           </div>
 
           <Textarea
