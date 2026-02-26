@@ -307,6 +307,16 @@ const SrsPage: React.FC = () => {
                           포커스 매칭 예시 {currentItem.memory.noticedExamples.length}개
                         </p>
                       ) : null}
+                      {currentItem.memory.aiFeedback?.correction && (
+                        <div className="mt-2 rounded-[var(--radius-sm)] bg-secondary/65 px-2 py-1 text-xs text-muted-foreground">
+                          교정 요약: <span className="text-foreground">{currentItem.memory.aiFeedback.correction}</span>
+                        </div>
+                      )}
+                      {currentItem.memory.aiFeedback?.drills?.length ? (
+                        <p className="text-xs text-muted-foreground mt-1">
+                          드릴 {currentItem.memory.aiFeedback.drills.length}개 저장됨
+                        </p>
+                      ) : null}
                     </>
                   )}
                 </div>

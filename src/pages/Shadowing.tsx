@@ -11,6 +11,7 @@ import { CircleAlert, CirclePlay, Check } from "lucide-react";
 import { formatTime } from "@/domain/time";
 import { cn } from "@/lib/utils";
 import { trackSessionEvent, trackStepCompletion } from "@/lib/sessionTracker";
+import { parseAiResponse, ParsedAiFeedback } from "@/domain/aiResponseParser";
 
 const shadowingStateKey = (clipId: string, startSec: number, endSec: number) => `dlb:shadowing:state:${clipId}:${startSec}:${endSec}`;
 const shadowingAudioKey = (clipId: string, startSec: number, endSec: number) => `dlb:shadowing:audio:${clipId}:${startSec}:${endSec}`;
@@ -58,6 +59,9 @@ const Shadowing: React.FC = () => {
   const [audioHydrated, setAudioHydrated] = useState(false);
   const [playbackNonce, setPlaybackNonce] = useState(0);
   const [checked, setChecked] = useState<Set<string>>(new Set());
+  const [aiResponseRaw, setAiResponseRaw] = useState("");
+  const [parsedFeedback, setParsedFeedback] = useState<ParsedAiFeedback | null>(null);
+  const [aiParseError, setAiParseError] = useState<string | null>(null);
 
   const queryParams = useMemo(() => new URLSearchParams(location.search), [location.search]);
   const startSec = Math.max(0, Math.floor(Number(queryParams.get("start")) || 0));
@@ -195,6 +199,17 @@ const Shadowing: React.FC = () => {
     navigate("/srs");
   };
 
+  const handleParseAiResponse = () => {
+    const parsed = parseAiResponse(aiResponseRaw);
+    if (!parsed.feedback) {
+      setAiParseError(parsed.error || "AI 응답 파싱에 실패했습니다.");
+      return;
+    }
+
+    setParsedFeedback(parsed.feedback);
+    setAiParseError(null);
+  };
+
   if (loading) {
     return (
       <PageShell title={SHADOWING_TITLE} showBack onBack={() => navigate(-1)} noBottomNav>
@@ -299,9 +314,33 @@ const Shadowing: React.FC = () => {
           youtubeUrl={clip.youtubeUrl || `https://www.youtube.com/watch?v=${clip.videoId}`}
           userText={practiceText}
           recordedAudioFile={recordedAudioFile}
-          notes={`듣고 따라 말하기 체크리스트 완료: ${checked.size}/${CHECKLIST.length}`}
+          notes={
+            parsedFeedback?.correction
+              ? `듣고 따라 말하기 체크리스트 완료: ${checked.size}/${CHECKLIST.length}\nAI 교정 요약: ${parsedFeedback.correction}`
+              : `듣고 따라 말하기 체크리스트 완료: ${checked.size}/${CHECKLIST.length}`
+          }
           promptMode="shadowing-pronunciation"
         />
+
+        <div className="ui-island w-full py-4 space-y-2">
+          <h3 className="text-sm font-semibold">AI 답변 붙여넣기 (선택)</h3>
+          <p className="text-xs text-muted-foreground">발음 교정 답변을 구조화해 요약으로 재사용할 수 있습니다.</p>
+          <textarea
+            className="min-h-[90px] w-full rounded-[var(--radius-sm)] border border-border/80 bg-secondary/55 p-2 text-xs"
+            value={aiResponseRaw}
+            onChange={(event) => setAiResponseRaw(event.target.value)}
+            placeholder="외부 AI의 발음 교정 답변을 붙여넣으세요"
+          />
+          {aiParseError && <p className="text-xs text-destructive">{aiParseError}</p>}
+          {parsedFeedback && (
+            <p className="text-xs text-muted-foreground">
+              교정문 {parsedFeedback.correction ? "1개" : "0개"} · 드릴 {parsedFeedback.drills?.length || 0}개 감지
+            </p>
+          )}
+          <Button type="button" size="sm" variant="outline" onClick={handleParseAiResponse} disabled={!aiResponseRaw.trim()}>
+            파싱 적용
+          </Button>
+        </div>
 
         <div className="grid w-full grid-cols-2 gap-2">
           <Button type="button" variant="outline" onClick={() => navigate(`/learn/${clip.id}?start=${startSec}&end=${endSec}&mode=subtitle`)}>

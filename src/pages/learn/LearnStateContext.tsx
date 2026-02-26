@@ -72,6 +72,7 @@ interface LearnStateContextValue {
   comprehensionRating: number | undefined;
   noticingFocus: string;
   noticedExamples: string[];
+  aiFeedbackDraft: MemoryItem["aiFeedback"] | null;
   saveError: string | null;
   embedDisabled: boolean;
   savedItems: MemoryItem[];
@@ -91,6 +92,7 @@ interface LearnStateContextValue {
   setConfidence: (value: 1 | 2 | 3 | 4 | 5 | undefined) => void;
   rateComprehension: (rating: number) => Promise<void>;
   setNoticingFocus: (value: string) => void;
+  setAiFeedbackDraft: (value: MemoryItem["aiFeedback"] | null) => void;
   setEmbedDisabled: (value: boolean) => void;
 
   applyRange: (start: number, end: number | null, options?: { requestAutoplay?: boolean }) => void;
@@ -159,6 +161,7 @@ export const LearnStateProvider: React.FC<LearnStateProviderProps> = ({ clipId, 
   const [comprehensionRating, setComprehensionRating] = useState<number | undefined>(undefined);
   const [noticingFocus, setNoticingFocusState] = useState("");
   const [noticedExamples, setNoticedExamples] = useState<string[]>([]);
+  const [aiFeedbackDraft, setAiFeedbackDraftState] = useState<MemoryItem["aiFeedback"] | null>(null);
 
   const [saveError, setSaveError] = useState<string | null>(null);
   const [embedDisabled, setEmbedDisabled] = useState(false);
@@ -409,6 +412,7 @@ export const LearnStateProvider: React.FC<LearnStateProviderProps> = ({ clipId, 
       ...(confidence ? { confidence } : {}),
       noticingFocus: normalizedFocus,
       noticedExamples: noticedExamples.slice(0, 8),
+      ...(aiFeedbackDraft ? { aiFeedback: aiFeedbackDraft } : {}),
       createdAt: now,
       updatedAt: now,
     };
@@ -422,6 +426,7 @@ export const LearnStateProvider: React.FC<LearnStateProviderProps> = ({ clipId, 
       setSelectedTranscriptTextState("");
       setConfidence(undefined);
       setNoticedExamples([]);
+      setAiFeedbackDraftState(null);
     } catch (error) {
       console.error(error);
       const message = "저장에 실패했습니다. 다시 시도해주세요.";
@@ -517,6 +522,10 @@ export const LearnStateProvider: React.FC<LearnStateProviderProps> = ({ clipId, 
   const setNoticingFocus = (value: string) => {
     setNoticingFocusState(value);
     setNoticedExamples([]);
+  };
+
+  const setAiFeedbackDraft = (value: MemoryItem["aiFeedback"] | null) => {
+    setAiFeedbackDraftState(value);
   };
 
   const registerNoticingExample = (text: string) => {
@@ -664,6 +673,7 @@ export const LearnStateProvider: React.FC<LearnStateProviderProps> = ({ clipId, 
     if (item.noticedExamples?.length) {
       setNoticedExamples(item.noticedExamples.slice(0, 8));
     }
+    setAiFeedbackDraftState(item.aiFeedback || null);
   };
 
   const getShadowingTextSeed = () => {
@@ -705,6 +715,7 @@ export const LearnStateProvider: React.FC<LearnStateProviderProps> = ({ clipId, 
     comprehensionRating,
     noticingFocus,
     noticedExamples,
+    aiFeedbackDraft,
     saveError,
     embedDisabled,
     savedItems,
@@ -724,6 +735,7 @@ export const LearnStateProvider: React.FC<LearnStateProviderProps> = ({ clipId, 
     setConfidence,
     rateComprehension,
     setNoticingFocus,
+    setAiFeedbackDraft,
     setEmbedDisabled,
 
     applyRange,

@@ -9,6 +9,8 @@ import { formatTime } from "@/domain/time";
 import { cn } from "@/lib/utils";
 import { getSettings } from "@/lib/storage";
 import { getNoticingPresets, normalizeNoticingFocus } from "@/domain/noticing";
+import { parseAiResponse } from "@/domain/aiResponseParser";
+import { trackSessionEvent } from "@/lib/sessionTracker";
 
 const PracticePanel: React.FC = () => {
   const {
@@ -19,16 +21,20 @@ const PracticePanel: React.FC = () => {
     comprehensionRating,
     noticingFocus,
     noticedExamples,
+    aiFeedbackDraft,
     saveError,
     savedItems,
     setNotes,
     rateComprehension,
     setNoticingFocus,
+    setAiFeedbackDraft,
     handleSaveMemory,
     selectSavedMemory,
   } = useLearnState();
   const [targetLanguage, setTargetLanguage] = useState("en");
   const [customFocus, setCustomFocus] = useState(noticingFocus);
+  const [aiResponseRaw, setAiResponseRaw] = useState("");
+  const [aiParseError, setAiParseError] = useState<string | null>(null);
 
   useEffect(() => {
     setTargetLanguage(getSettings().targetLanguage);
@@ -39,6 +45,18 @@ const PracticePanel: React.FC = () => {
   }, [noticingFocus]);
 
   const focusPresets = useMemo(() => getNoticingPresets(targetLanguage), [targetLanguage]);
+
+  const handleParseAiResponse = () => {
+    const parsed = parseAiResponse(aiResponseRaw);
+    if (!parsed.feedback) {
+      setAiParseError(parsed.error || "AI 응답 파싱에 실패했습니다.");
+      return;
+    }
+
+    setAiFeedbackDraft(parsed.feedback);
+    setAiParseError(null);
+    void trackSessionEvent({ type: "ai_feedback", seconds: 15, turns: 1 });
+  };
 
   if (!clip || !currentRef) return null;
 
@@ -140,6 +158,42 @@ const PracticePanel: React.FC = () => {
           actionMode="split"
           showPromptPreview
         />
+
+        <section className="learning-card learning-card-no-x w-full space-y-2">
+          <h3 className="text-sm font-semibold">AI 답변 붙여넣기</h3>
+          <p className="text-xs text-muted-foreground">교정문/바꿔말하기/드릴을 구조화해 카드에 함께 저장합니다.</p>
+          <Textarea
+            rows={4}
+            value={aiResponseRaw}
+            onChange={(event) => setAiResponseRaw(event.target.value)}
+            placeholder="외부 AI 답변을 그대로 붙여넣으세요"
+          />
+          {aiParseError && <p className="text-xs text-destructive">{aiParseError}</p>}
+          {aiFeedbackDraft && (
+            <div className="rounded-[var(--radius-sm)] bg-secondary/65 p-2 text-xs text-muted-foreground">
+              <p>교정문: {aiFeedbackDraft.correction ? "있음" : "없음"}</p>
+              <p>바꿔말하기: {aiFeedbackDraft.paraphrases?.length || 0}개</p>
+              <p>드릴: {aiFeedbackDraft.drills?.length || 0}개</p>
+            </div>
+          )}
+          <div className="flex gap-2">
+            <Button type="button" size="sm" onClick={handleParseAiResponse} disabled={!aiResponseRaw.trim()}>
+              파싱해서 저장
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={() => {
+                setAiResponseRaw("");
+                setAiParseError(null);
+                setAiFeedbackDraft(null);
+              }}
+            >
+              초기화
+            </Button>
+          </div>
+        </section>
       </div>
 
       <div className="learning-topic-divider" aria-hidden />
