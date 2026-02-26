@@ -1,5 +1,6 @@
 import { SessionLog } from "@/lib/types";
 import { listFromStore, upsertToStore } from "@/storage/db";
+import { mergeSessionLogAnalytics } from "@/domain/sessionAnalytics";
 
 function toDateKey(date: Date): string {
   const year = date.getFullYear();
@@ -17,6 +18,7 @@ export async function append(log: SessionLog): Promise<void> {
     return;
   }
 
+  const analytics = mergeSessionLogAnalytics(prev, log);
   await upsertToStore("sessionLogs", {
     ...prev,
     minutes: prev.minutes + log.minutes,
@@ -25,6 +27,7 @@ export async function append(log: SessionLog): Promise<void> {
       ...prev.stepsCompleted,
       ...log.stepsCompleted,
     },
+    ...analytics,
   });
 }
 

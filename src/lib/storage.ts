@@ -4,6 +4,7 @@ import * as memoryRepo from "@/storage/memoryRepo";
 import * as srsRepo from "@/storage/srsRepo";
 import * as sessionRepo from "@/storage/sessionRepo";
 import { clearAllAppData, getStorageStatus } from "@/storage/metaRepo";
+import { mergeStrandSeconds, normalizeStrandSeconds } from "@/domain/sessionAnalytics";
 
 const SETTINGS_KEY = "dlb:settings";
 const LEGACY_SETTINGS_KEY = "lingoplay_settings";
@@ -142,6 +143,41 @@ export async function getTotalStudyMinutes(): Promise<number> {
 
 export async function getStreak(): Promise<number> {
   return sessionRepo.getStreak();
+}
+
+export async function getRecentSessionSummary(days = 7): Promise<{
+  logs: SessionLog[];
+  totalMinutes: number;
+  totalSavedCount: number;
+  strandSeconds: ReturnType<typeof normalizeStrandSeconds>;
+  interactionTurns: number;
+  noticingEvents: number;
+  fluencyLoops: number;
+}> {
+  const logs = await sessionRepo.getAll();
+  const recentLogs = logs.slice(-Math.max(1, Math.floor(days)));
+
+  return recentLogs.reduce(
+    (acc, log) => {
+      acc.logs.push(log);
+      acc.totalMinutes += log.minutes;
+      acc.totalSavedCount += log.savedCount;
+      acc.strandSeconds = mergeStrandSeconds(acc.strandSeconds, log.strandSeconds);
+      acc.interactionTurns += log.interactionTurns || 0;
+      acc.noticingEvents += log.noticingEvents || 0;
+      acc.fluencyLoops += log.fluencyLoops || 0;
+      return acc;
+    },
+    {
+      logs: [] as SessionLog[],
+      totalMinutes: 0,
+      totalSavedCount: 0,
+      strandSeconds: normalizeStrandSeconds(),
+      interactionTurns: 0,
+      noticingEvents: 0,
+      fluencyLoops: 0,
+    }
+  );
 }
 
 export { getStorageStatus };

@@ -15,6 +15,8 @@ export interface Clip {
   captionsAvailable?: boolean | "unknown";
   addedAt?: string;
   embeddable?: boolean;
+  fitBand?: "too_easy" | "fit" | "too_hard";
+  comprehensionAvg?: number;
 }
 
 export interface SegmentRef {
@@ -46,6 +48,14 @@ export interface MemoryItem {
       len: number;
     };
   };
+  noticingFocus?: string;
+  noticedExamples?: string[];
+  aiFeedback?: {
+    correction?: string;
+    paraphrases?: string[];
+    drills?: string[];
+    source: "external-paste";
+  };
   createdAt: number;
   updatedAt: number;
 }
@@ -70,6 +80,15 @@ export interface SessionLog {
     D?: boolean;
   };
   savedCount: number;
+  strandSeconds?: {
+    input: number;
+    output: number;
+    form: number;
+    fluency: number;
+  };
+  interactionTurns?: number;
+  noticingEvents?: number;
+  fluencyLoops?: number;
 }
 
 export interface UserSettings {
