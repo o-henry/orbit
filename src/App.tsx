@@ -14,6 +14,7 @@ import Resources from "./pages/Resources";
 import Learn from "./pages/Learn";
 import Shadowing from "./pages/Shadowing";
 import Srs from "./pages/Srs";
+import Stats from "./pages/Stats";
 import Settings from "./pages/Settings";
 import SettingsMemo from "./pages/SettingsMemo";
 import NotFound from "./pages/NotFound";
@@ -47,6 +48,7 @@ function AppRouter() {
       <Route path="/learn/:clipId" element={<Learn />} />
       <Route path="/shadowing/:clipId" element={<Shadowing />} />
       <Route path="/srs" element={<Srs />} />
+      <Route path="/stats" element={<Stats />} />
       <Route path="/settings" element={<Settings />} />
       <Route path="/settings/memo" element={<SettingsMemo />} />
       <Route path="*" element={<NotFound />} />
