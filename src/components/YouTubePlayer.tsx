@@ -31,6 +31,7 @@ interface YouTubePlayerProps {
   autoplay?: boolean;
   className?: string;
   onEmbedError?: () => void;
+  onLoopCycle?: (cycleCount: number) => void;
 }
 
 let ytScriptPromise: Promise<void> | null = null;
@@ -84,10 +85,12 @@ const YouTubePlayer: React.FC<YouTubePlayerProps> = ({
   autoplay = false,
   className = "",
   onEmbedError,
+  onLoopCycle,
 }) => {
   const hostRef = useRef<HTMLDivElement>(null);
   const playerRef = useRef<YTPlayer | null>(null);
   const intervalRef = useRef<number | null>(null);
+  const loopCycleRef = useRef(0);
 
   const [ready, setReady] = useState(false);
   const [error, setError] = useState(false);
@@ -187,6 +190,10 @@ const YouTubePlayer: React.FC<YouTubePlayerProps> = ({
   }, [videoId, normalizedStart, normalizedEnd, ready, error]);
 
   useEffect(() => {
+    loopCycleRef.current = 0;
+  }, [videoId, normalizedStart, normalizedEnd]);
+
+  useEffect(() => {
     if (!ready || !playerRef.current || !loop || normalizedEnd === undefined || error) {
       if (intervalRef.current) {
         window.clearInterval(intervalRef.current);
@@ -199,6 +206,8 @@ const YouTubePlayer: React.FC<YouTubePlayerProps> = ({
       if (!playerRef.current) return;
       const now = playerRef.current.getCurrentTime();
       if (Number.isFinite(now) && now >= normalizedEnd) {
+        loopCycleRef.current += 1;
+        onLoopCycle?.(loopCycleRef.current);
         playerRef.current.seekTo(normalizedStart, true);
         playerRef.current.playVideo();
       }
@@ -210,7 +219,7 @@ const YouTubePlayer: React.FC<YouTubePlayerProps> = ({
         intervalRef.current = null;
       }
     };
-  }, [loop, normalizedStart, normalizedEnd, ready, error]);
+  }, [loop, normalizedStart, normalizedEnd, ready, error, onLoopCycle]);
 
   if (error) {
     return (

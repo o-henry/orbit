@@ -1,9 +1,10 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { formatTime } from "@/domain/time";
 import YouTubePlayer from "@/components/YouTubePlayer";
 import { Button } from "@/components/ui/button";
 import { useLearnState } from "@/pages/learn/LearnStateContext";
+import { trackSessionEvent } from "@/lib/sessionTracker";
 
 const VideoStage: React.FC = () => {
   const {
@@ -23,6 +24,16 @@ const VideoStage: React.FC = () => {
     jumpToPrevSegment,
     jumpToNextSegment,
   } = useLearnState();
+  const [loopCycles, setLoopCycles] = useState(0);
+
+  useEffect(() => {
+    setLoopCycles(0);
+  }, [clip?.id, startSec, endSec, effectiveEndSec]);
+
+  const handleLoopCycle = (cycleCount: number) => {
+    setLoopCycles(cycleCount);
+    void trackSessionEvent({ type: "loop_cycle", seconds: 10, loopCount: 1 });
+  };
 
   if (!clip) return null;
 
@@ -37,6 +48,7 @@ const VideoStage: React.FC = () => {
           autoplay={requestAutoplay}
           className="rounded-[var(--learn-radius-card)]"
           onEmbedError={() => setEmbedDisabled(true)}
+          onLoopCycle={handleLoopCycle}
         />
       </section>
 
@@ -101,6 +113,10 @@ const VideoStage: React.FC = () => {
           <Button type="button" size="sm" variant="ghost" className="learning-segment-nav learning-controlbar-item text-[11px] font-ko-bold" onClick={jumpToNextSegment}>
             다음 <ChevronRight className="h-3.5 w-3.5" />
           </Button>
+        </div>
+        <div className="mt-2 rounded-[var(--radius-sm)] bg-secondary/60 px-3 py-2 text-[11px] text-muted-foreground">
+          연속 루프 {loopCycles}/3
+          {loopCycles >= 3 ? " · 유창성 루프 완료" : ""}
         </div>
       </section>
     </div>

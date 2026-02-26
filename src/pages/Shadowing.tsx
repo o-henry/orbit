@@ -59,6 +59,7 @@ const Shadowing: React.FC = () => {
   const [audioHydrated, setAudioHydrated] = useState(false);
   const [playbackNonce, setPlaybackNonce] = useState(0);
   const [checked, setChecked] = useState<Set<string>>(new Set());
+  const [loopCycles, setLoopCycles] = useState(0);
   const [aiResponseRaw, setAiResponseRaw] = useState("");
   const [parsedFeedback, setParsedFeedback] = useState<ParsedAiFeedback | null>(null);
   const [aiParseError, setAiParseError] = useState<string | null>(null);
@@ -67,6 +68,10 @@ const Shadowing: React.FC = () => {
   const startSec = Math.max(0, Math.floor(Number(queryParams.get("start")) || 0));
   const endSec = Math.max(startSec + 2, Math.floor(Number(queryParams.get("end")) || startSec + 10));
   const practiceText = (queryParams.get("text") || "").trim();
+
+  useEffect(() => {
+    setLoopCycles(0);
+  }, [clipId, startSec, endSec]);
 
   useEffect(() => {
     const load = async () => {
@@ -193,9 +198,6 @@ const Shadowing: React.FC = () => {
   };
 
   const goToSrs = () => {
-    if (checked.size >= CHECKLIST.length) {
-      void trackSessionEvent({ type: "loop_cycle", seconds: 12, loopCount: 1 });
-    }
     navigate("/srs");
   };
 
@@ -208,6 +210,14 @@ const Shadowing: React.FC = () => {
 
     setParsedFeedback(parsed.feedback);
     setAiParseError(null);
+  };
+
+  const handleLoopCycle = (cycleCount: number) => {
+    setLoopCycles(cycleCount);
+    void trackSessionEvent({ type: "loop_cycle", seconds: 10, loopCount: 1 });
+    if (cycleCount === 3) {
+      void trackStepCompletion({ C: true });
+    }
   };
 
   if (loading) {
@@ -259,7 +269,12 @@ const Shadowing: React.FC = () => {
             loop
             autoplay={playbackNonce > 0}
             className="w-full"
+            onLoopCycle={handleLoopCycle}
           />
+        </div>
+        <div className="rounded-[var(--radius-sm)] bg-secondary/60 px-3 py-2 text-[11px] text-muted-foreground">
+          연속 루프 {loopCycles}/3
+          {loopCycles >= 3 ? " · 유창성 루프 완료" : ""}
         </div>
 
         <div className="ui-island w-full py-4 space-y-3">
