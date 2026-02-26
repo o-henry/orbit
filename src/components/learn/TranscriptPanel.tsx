@@ -4,6 +4,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { TranscriptLine, parseUserProvidedTranscript } from "@/domain/transcript";
 import { formatTime } from "@/domain/time";
 import { cn } from "@/lib/utils";
+import { doesTextMatchNoticingFocus, normalizeNoticingFocus } from "@/domain/noticing";
 
 const HAS_KO_REGEX = /[가-힣ㄱ-ㅎㅏ-ㅣ]/;
 const HAS_JP_REGEX = /[ぁ-ゟ゠-ヿ㐀-䶿一-鿿]/;
@@ -22,6 +23,7 @@ interface TranscriptPanelProps {
   displayMode?: "none" | "subtitle" | "slash";
   onLineActivate?: (line: TranscriptLine) => void;
   onRangeActivate?: (lines: TranscriptLine[]) => void;
+  noticingFocus?: string;
 }
 
 const TranscriptPanel: React.FC<TranscriptPanelProps> = ({
@@ -32,6 +34,7 @@ const TranscriptPanel: React.FC<TranscriptPanelProps> = ({
   displayMode = "subtitle",
   onLineActivate,
   onRangeActivate,
+  noticingFocus,
 }) => {
   const [rawInput, setRawInput] = useState("");
   const [pasteOpen, setPasteOpen] = useState(lines.length === 0);
@@ -40,6 +43,17 @@ const TranscriptPanel: React.FC<TranscriptPanelProps> = ({
 
   const selectionContainerRef = useRef<HTMLDivElement>(null);
   const hasLines = useMemo(() => lines.length > 0, [lines]);
+  const normalizedFocus = useMemo(() => normalizeNoticingFocus(noticingFocus || ""), [noticingFocus]);
+  const matchedLineIndexSet = useMemo(() => {
+    if (!normalizedFocus) return new Set<number>();
+    const matched = new Set<number>();
+    lines.forEach((line, index) => {
+      if (doesTextMatchNoticingFocus(line.text, normalizedFocus)) {
+        matched.add(index);
+      }
+    });
+    return matched;
+  }, [lines, normalizedFocus]);
   const parsePreview = useMemo(
     () =>
       parseUserProvidedTranscript(rawInput, {
@@ -212,6 +226,11 @@ const TranscriptPanel: React.FC<TranscriptPanelProps> = ({
         <p className="text-[11px] text-muted-foreground mb-2">
           선택한 텍스트는 아래 저장 섹션으로 보낼 수 있습니다. {persistEnabled ? "붙여넣은 자막은 이 기기에 계속 저장됩니다." : ""}
         </p>
+        {normalizedFocus && (
+          <p className="text-[11px] text-muted-foreground mb-2">
+            포커스 <span className="font-medium text-foreground">{normalizedFocus}</span> · 매칭 {matchedLineIndexSet.size}개
+          </p>
+        )}
 
         <div ref={selectionContainerRef} onMouseUp={updateSelectionFromDom} className="space-y-2 max-h-72 overflow-auto pr-1 scrollbar-none">
           {lines.length === 0 ? (
@@ -222,6 +241,7 @@ const TranscriptPanel: React.FC<TranscriptPanelProps> = ({
           ) : (
             lines.map((line, index) => {
               const selected = selectedIndices.has(index);
+              const matchedByFocus = matchedLineIndexSet.has(index);
               return (
                 <button
                   key={line.id}
@@ -229,7 +249,8 @@ const TranscriptPanel: React.FC<TranscriptPanelProps> = ({
                   onClick={(event) => handleLineClick(index, event)}
                   className={cn(
                     "w-full text-left rounded-[var(--radius)] bg-card p-2 transition-colors",
-                    selected ? "bg-primary/10 shadow-[inset_0_0_0_1px_hsl(var(--primary)/0.45)]" : "hover:bg-secondary"
+                    selected ? "bg-primary/10 shadow-[inset_0_0_0_1px_hsl(var(--primary)/0.45)]" : "hover:bg-secondary",
+                    matchedByFocus && !selected ? "shadow-[inset_0_0_0_1px_hsl(var(--warning)/0.45)]" : ""
                   )}
                 >
                   <div className="text-[10px] text-muted-foreground mb-1">

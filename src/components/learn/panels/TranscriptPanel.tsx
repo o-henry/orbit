@@ -12,6 +12,7 @@ const TranscriptPanel: React.FC = () => {
     persistTranscript,
     transcriptLines,
     selectedTranscriptText,
+    noticingFocus,
     showTranscriptPanel,
     setTranscriptLinesWithCache,
     setSelectedTranscriptText,
@@ -46,6 +47,7 @@ const TranscriptPanel: React.FC = () => {
             onLineActivate={activateTranscriptLine}
             onRangeActivate={activateTranscriptRange}
             displayMode="subtitle"
+            noticingFocus={noticingFocus}
           />
 
           <div className="rounded-[var(--radius-sm)] bg-secondary/65 p-3 space-y-2">

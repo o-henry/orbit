@@ -18,6 +18,7 @@ import { getMetaValue, setMetaValue } from "@/storage/metaRepo";
 import { toast } from "sonner";
 import { trackSavedMemory, trackSessionEvent } from "@/lib/sessionTracker";
 import { clampComprehensionRating, resolveFitBand, updateComprehensionAverage } from "@/domain/comprehension";
+import { doesTextMatchNoticingFocus, normalizeNoticingFocus } from "@/domain/noticing";
 
 const TRANSCRIPT_GUIDE_DISMISSED_KEY = "dlb:transcript:guide:dismissed";
 const transcriptStorageKey = (clipId: string) => `dlb:transcript:${clipId}`;
@@ -69,6 +70,8 @@ interface LearnStateContextValue {
   notes: string;
   confidence: 1 | 2 | 3 | 4 | 5 | undefined;
   comprehensionRating: number | undefined;
+  noticingFocus: string;
+  noticedExamples: string[];
   saveError: string | null;
   embedDisabled: boolean;
   savedItems: MemoryItem[];
@@ -87,6 +90,7 @@ interface LearnStateContextValue {
   setNotes: (value: string) => void;
   setConfidence: (value: 1 | 2 | 3 | 4 | 5 | undefined) => void;
   rateComprehension: (rating: number) => Promise<void>;
+  setNoticingFocus: (value: string) => void;
   setEmbedDisabled: (value: boolean) => void;
 
   applyRange: (start: number, end: number | null, options?: { requestAutoplay?: boolean }) => void;
@@ -153,6 +157,8 @@ export const LearnStateProvider: React.FC<LearnStateProviderProps> = ({ clipId, 
   const [notes, setNotes] = useState("");
   const [confidence, setConfidence] = useState<1 | 2 | 3 | 4 | 5 | undefined>(undefined);
   const [comprehensionRating, setComprehensionRating] = useState<number | undefined>(undefined);
+  const [noticingFocus, setNoticingFocusState] = useState("");
+  const [noticedExamples, setNoticedExamples] = useState<string[]>([]);
 
   const [saveError, setSaveError] = useState<string | null>(null);
   const [embedDisabled, setEmbedDisabled] = useState(false);
@@ -384,8 +390,13 @@ export const LearnStateProvider: React.FC<LearnStateProviderProps> = ({ clipId, 
     }
 
     const cleanNotes = notes.trim();
+    const normalizedFocus = normalizeNoticingFocus(noticingFocus);
     if (!safeUserText) {
       toast.error("자막에서 표현을 먼저 선택해주세요");
+      return;
+    }
+    if (!normalizedFocus) {
+      toast.error("오늘 포커스 1개를 먼저 선택해주세요");
       return;
     }
 
@@ -396,6 +407,8 @@ export const LearnStateProvider: React.FC<LearnStateProviderProps> = ({ clipId, 
       notes: cleanNotes || safeUserText,
       ...(safeUserText ? { userText: safeUserText } : {}),
       ...(confidence ? { confidence } : {}),
+      noticingFocus: normalizedFocus,
+      noticedExamples: noticedExamples.slice(0, 8),
       createdAt: now,
       updatedAt: now,
     };
@@ -408,6 +421,7 @@ export const LearnStateProvider: React.FC<LearnStateProviderProps> = ({ clipId, 
       setNotes("");
       setSelectedTranscriptTextState("");
       setConfidence(undefined);
+      setNoticedExamples([]);
     } catch (error) {
       console.error(error);
       const message = "저장에 실패했습니다. 다시 시도해주세요.";
@@ -500,6 +514,26 @@ export const LearnStateProvider: React.FC<LearnStateProviderProps> = ({ clipId, 
     }
   };
 
+  const setNoticingFocus = (value: string) => {
+    setNoticingFocusState(value);
+    setNoticedExamples([]);
+  };
+
+  const registerNoticingExample = (text: string) => {
+    const normalizedFocus = normalizeNoticingFocus(noticingFocus);
+    if (!normalizedFocus) return;
+    if (!doesTextMatchNoticingFocus(text, normalizedFocus)) return;
+
+    const sample = text.trim();
+    if (!sample) return;
+
+    setNoticedExamples((prev) => {
+      if (prev.includes(sample)) return prev;
+      return [...prev, sample].slice(-8);
+    });
+    void trackSessionEvent({ type: "noticing_mark", seconds: 6, noticingCount: 1 });
+  };
+
   const rateComprehension = async (rating: number) => {
     if (!clip) return;
     const safeRating = clampComprehensionRating(rating);
@@ -524,6 +558,7 @@ export const LearnStateProvider: React.FC<LearnStateProviderProps> = ({ clipId, 
     const selected = text.trim();
     setSelectedTranscriptTextState(selected);
     setHeardSentence(selected);
+    registerNoticingExample(selected);
   };
 
   const activateTranscriptLine = (line: TranscriptLine) => {
@@ -623,6 +658,12 @@ export const LearnStateProvider: React.FC<LearnStateProviderProps> = ({ clipId, 
   const selectSavedMemory = (item: MemoryItem) => {
     setLoopEnabled(true);
     applyRange(item.ref.startSec, item.ref.endSec, { requestAutoplay: true });
+    if (item.noticingFocus) {
+      setNoticingFocusState(item.noticingFocus);
+    }
+    if (item.noticedExamples?.length) {
+      setNoticedExamples(item.noticedExamples.slice(0, 8));
+    }
   };
 
   const getShadowingTextSeed = () => {
@@ -662,6 +703,8 @@ export const LearnStateProvider: React.FC<LearnStateProviderProps> = ({ clipId, 
     notes,
     confidence,
     comprehensionRating,
+    noticingFocus,
+    noticedExamples,
     saveError,
     embedDisabled,
     savedItems,
@@ -680,6 +723,7 @@ export const LearnStateProvider: React.FC<LearnStateProviderProps> = ({ clipId, 
     setNotes,
     setConfidence,
     rateComprehension,
+    setNoticingFocus,
     setEmbedDisabled,
 
     applyRange,
