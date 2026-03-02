@@ -111,6 +111,9 @@ const Library: React.FC = () => {
         }
       >
         <section className="font-ko-bold">
+          <div className="mb-3 rounded-[10px] border border-border/80 bg-secondary/55 p-3 text-[11px] text-muted-foreground">
+            Orbit는 YouTube 공식 임베드만 사용합니다. 타인 영상 transcript 자동 수집, 오디오 추출, 다운로드 기능은 제공하지 않습니다.
+          </div>
           {migrationRequired ? (
             blockedContent
           ) : (

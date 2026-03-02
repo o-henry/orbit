@@ -4,9 +4,10 @@ import BottomNav from "@/components/BottomNav";
 import PageShell from "@/components/PageShell";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { getRecentSessionSummary } from "@/lib/storage";
+import { getRecentSessionSummary, getSettings, getWeeklyPatternReport } from "@/lib/storage";
 import { SessionLog } from "@/lib/types";
 import { computeStrandRatio, normalizeStrandSeconds, StrandKey } from "@/domain/sessionAnalytics";
+import { toast } from "sonner";
 
 const STRAND_META: Array<{ key: StrandKey; label: string }> = [
   { key: "input", label: "입력" },
@@ -24,15 +25,19 @@ const Stats: React.FC = () => {
   const [totalMinutes, setTotalMinutes] = useState(0);
   const [totalSavedCount, setTotalSavedCount] = useState(0);
   const [strandSeconds, setStrandSeconds] = useState(normalizeStrandSeconds());
+  const [weeklyReport, setWeeklyReport] = useState<Awaited<ReturnType<typeof getWeeklyPatternReport>> | null>(null);
 
   useEffect(() => {
     const load = async () => {
       setLoading(true);
-      const summary = await getRecentSessionSummary(7);
+      const settings = getSettings();
+      const targetLanguage = settings.targetLanguage.toLowerCase().includes("ja") ? "Japanese" : "English";
+      const [summary, weekly] = await Promise.all([getRecentSessionSummary(7), getWeeklyPatternReport({ language: targetLanguage })]);
       setLogs(summary.logs);
       setTotalMinutes(summary.totalMinutes);
       setTotalSavedCount(summary.totalSavedCount);
       setStrandSeconds(summary.strandSeconds);
+      setWeeklyReport(weekly);
       setLoading(false);
     };
 
@@ -121,6 +126,41 @@ const Stats: React.FC = () => {
                   ))}
               </div>
             </section>
+
+            {weeklyReport && (
+              <section className="ui-island rounded-[16px] border p-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-sm font-semibold">주간 패턴</h3>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={() => {
+                      navigator.clipboard
+                        .writeText(weeklyReport.weeklyPrompt)
+                        .then(() => toast.success("WEEKLY 프롬프트 복사됨"))
+                        .catch(() => toast.error("복사에 실패했습니다."));
+                    }}
+                  >
+                    WEEKLY 프롬프트 복사
+                  </Button>
+                </div>
+
+                <div className="rounded-[10px] bg-secondary/65 p-3">
+                  <p className="text-[11px] text-muted-foreground">반복 오류 패턴</p>
+                  <p className="mt-1 text-sm">{weeklyReport.topErrorPatterns.join(" · ") || "(데이터 없음)"}</p>
+                </div>
+                <div className="rounded-[10px] bg-secondary/65 p-3">
+                  <p className="text-[11px] text-muted-foreground">유지할 강점</p>
+                  <p className="mt-1 text-sm">{weeklyReport.strengths.join(" · ") || "(데이터 없음)"}</p>
+                </div>
+                <div className="rounded-[10px] bg-secondary/65 p-3">
+                  <p className="text-[11px] text-muted-foreground">다음 주 추천</p>
+                  <p className="mt-1 text-xs text-muted-foreground">시나리오: {weeklyReport.recommendedScenarios.join(", ") || "(없음)"}</p>
+                  <p className="mt-1 text-xs text-muted-foreground">영상 유형: {weeklyReport.recommendedVideoTypes.join(", ") || "(없음)"}</p>
+                </div>
+              </section>
+            )}
           </div>
         )}
       </PageShell>

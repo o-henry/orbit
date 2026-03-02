@@ -220,6 +220,17 @@ export function parseStoryboardOutput(raw: string): ParseResult<StoryboardScene[
     const field = mapStoryboardField(line);
     if (field) {
       const value = afterColon(line);
+      if (field === "title" && (current.title || current.description || current.coreSentence || current.imagePrompt || current.recallQuestion)) {
+        pushScene();
+        current = {
+          title: "",
+          description: "",
+          coreSentence: "",
+          imagePrompt: "",
+          recallQuestion: "",
+          imageUrl: "",
+        };
+      }
       if (field === "imageUrl") {
         current.imageUrl = value;
       } else {

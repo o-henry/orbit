@@ -118,6 +118,9 @@ const VideoStage: React.FC = () => {
           연속 루프 {loopCycles}/3
           {loopCycles >= 3 ? " · 유창성 루프 완료" : ""}
         </div>
+        <div className="mt-2 rounded-[var(--radius-sm)] bg-secondary/45 px-3 py-2 text-[11px] text-muted-foreground">
+          정책 가드레일: 공식 임베드 재생만 지원하며 transcript 자동 수집, 오디오 추출, 다운로드는 지원하지 않습니다.
+        </div>
       </section>
     </div>
   );
