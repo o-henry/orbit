@@ -1,6 +1,6 @@
-import { Clip, MemoryItem, SessionLog, SrsCard } from "@/lib/types";
+import { Clip, MemoryItem, OrbitStudySession, RecallQueueCard, SessionLog, SrsCard, WeeklyPatternReport } from "@/lib/types";
 
-export type StoreName = "clips" | "memoryItems" | "srsCards" | "sessionLogs" | "meta";
+export type StoreName = "clips" | "memoryItems" | "srsCards" | "sessionLogs" | "orbitSessions" | "recallQueue" | "weeklyReports" | "meta";
 
 interface MetaRecord {
   key: string;
@@ -12,6 +12,9 @@ interface StoreMap {
   memoryItems: MemoryItem;
   srsCards: SrsCard;
   sessionLogs: SessionLog;
+  orbitSessions: OrbitStudySession;
+  recallQueue: RecallQueueCard;
+  weeklyReports: WeeklyPatternReport;
   meta: MetaRecord;
 }
 
@@ -22,7 +25,7 @@ export interface StorageStatus {
 }
 
 const DB_NAME = "dlb";
-const DB_VERSION = 3;
+const DB_VERSION = 4;
 const LS_PREFIX = "dlb:";
 
 const LEGACY_KEYS = ["lingoplay_clips", "lingoplay_srs", "lingoplay_sessions"];
@@ -34,6 +37,9 @@ const STORE_KEY_PATH: Record<StoreName, string> = {
   memoryItems: "id",
   srsCards: "id",
   sessionLogs: "date",
+  orbitSessions: "id",
+  recallQueue: "id",
+  weeklyReports: "id",
   meta: "key",
 };
 
@@ -373,7 +379,7 @@ export async function getStorageStatus(): Promise<StorageStatus> {
 export async function clearAllAppData(): Promise<void> {
   await initStorage();
 
-  const stores: StoreName[] = ["clips", "memoryItems", "srsCards", "sessionLogs", "meta"];
+  const stores: StoreName[] = ["clips", "memoryItems", "srsCards", "sessionLogs", "orbitSessions", "recallQueue", "weeklyReports", "meta"];
   await Promise.all(stores.map((store) => clearStore(store)));
 
   LEGACY_KEYS.forEach((legacyKey) => localStorage.removeItem(legacyKey));

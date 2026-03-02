@@ -97,11 +97,116 @@ export interface UserSettings {
   learnerLevel: "입문" | "초급" | "중급" | "고급";
   userAge: number;
   userGender: "남" | "여" | "기타" | "비공개";
+  chatgptProjectUrlEn: string;
+  chatgptProjectUrlJa: string;
+  defaultCorrectionMode: "light" | "normal";
   goal: string;
   dailyMinutes: number;
   mode: "beginner" | "intermediate" | "advanced";
   darkMode: boolean;
   setupComplete: boolean;
+}
+
+export interface OrbitSessionPacket {
+  targetLanguage: string;
+  level: string;
+  videoTitle: string;
+  videoUrl: string;
+  clipStart: string;
+  clipEnd: string;
+  oneLineSummaryKr: string;
+  keyExpressions: string[];
+  conversationGoal: string;
+  correctionMode: "light" | "normal";
+  storyboardNeeded: boolean;
+  notes?: string;
+  clipId?: string;
+  videoId?: string;
+  startSec?: number;
+  endSec?: number;
+}
+
+export interface SessionReviewRepeatedError {
+  original: string;
+  natural: string;
+  reason: string;
+  category?: string;
+}
+
+export interface SessionReview {
+  strengths: string[];
+  repeatedErrors: SessionReviewRepeatedError[];
+  takeawayExpressions: string[];
+  nextSessionDrills: string[];
+  scenes: string[];
+  raw?: string;
+  createdAt: number;
+}
+
+export interface StoryboardScene {
+  id: string;
+  title: string;
+  description: string;
+  coreSentence: string;
+  imagePrompt: string;
+  recallQuestion: string;
+  imageUrl?: string;
+}
+
+export interface SessionStoryboard {
+  scenes: StoryboardScene[];
+  raw?: string;
+  createdAt: number;
+}
+
+export type OrbitSessionStatus = "packet_ready" | "reviewed" | "storyboarded" | "queued";
+
+export interface OrbitStudySession {
+  id: string;
+  targetLanguage: string;
+  packet: OrbitSessionPacket;
+  packetText: string;
+  status: OrbitSessionStatus;
+  review?: SessionReview;
+  storyboard?: SessionStoryboard;
+  recallQueueGeneratedAt?: number;
+  createdAt: number;
+  updatedAt: number;
+}
+
+export type RecallCardType = "image_speak" | "ko_hint_speak" | "role_switch" | "fill_blank";
+
+export interface RecallQueueCard {
+  id: string;
+  sessionId: string;
+  language: string;
+  dayOffset: 1 | 3 | 7;
+  cardType: RecallCardType;
+  prompt: string;
+  hint?: string;
+  answer: string;
+  dueAt: number;
+  status: "pending" | "completed";
+  completedAt?: number;
+  source: "review" | "storyboard";
+  createdAt: number;
+}
+
+export interface WeeklyPatternReport {
+  id: string;
+  weekKey: string;
+  language: string;
+  fromDate: string;
+  toDate: string;
+  topErrorPatterns: string[];
+  strengths: string[];
+  recommendedExpressions: string[];
+  recommendedScenarios: string[];
+  recommendedVideoTypes: string[];
+  weeklyPrompt: string;
+  raw?: string;
+  createdAt: number;
+  updatedAt: number;
 }
 
 export type LearningStep = "B" | "C";

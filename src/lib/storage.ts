@@ -1,10 +1,28 @@
-import { MemoryItem, SrsCard, SessionLog, UserSettings, Clip } from "@/lib/types";
+import {
+  Clip,
+  MemoryItem,
+  OrbitSessionPacket,
+  OrbitStudySession,
+  RecallQueueCard,
+  SessionReview,
+  SessionStoryboard,
+  SessionLog,
+  SrsCard,
+  UserSettings,
+  WeeklyPatternReport,
+} from "@/lib/types";
 import * as clipRepo from "@/storage/clipRepo";
 import * as memoryRepo from "@/storage/memoryRepo";
 import * as srsRepo from "@/storage/srsRepo";
 import * as sessionRepo from "@/storage/sessionRepo";
+import * as orbitSessionRepo from "@/storage/orbitSessionRepo";
+import * as recallQueueRepo from "@/storage/recallQueueRepo";
+import * as weeklyReportRepo from "@/storage/weeklyReportRepo";
 import { clearAllAppData, getStorageStatus } from "@/storage/metaRepo";
 import { mergeStrandSeconds, normalizeStrandSeconds } from "@/domain/sessionAnalytics";
+import { buildOrbitSessionPacketText } from "@/domain/orbitSessionPacket";
+import { generateRecallQueueCardsFromSession } from "@/domain/recallQueueGenerator";
+import { analyzeWeeklyPatterns } from "@/domain/weeklyPatternAnalyzer";
 
 const SETTINGS_KEY = "dlb:settings";
 const LEGACY_SETTINGS_KEY = "lingoplay_settings";
@@ -15,6 +33,9 @@ export const DEFAULT_SETTINGS: UserSettings = {
   learnerLevel: "초급",
   userAge: 20,
   userGender: "비공개",
+  chatgptProjectUrlEn: "",
+  chatgptProjectUrlJa: "",
+  defaultCorrectionMode: "light",
   goal: "conversation",
   dailyMinutes: 20,
   mode: "beginner",
@@ -119,6 +140,159 @@ export async function getSessionLogs(): Promise<SessionLog[]> {
 
 export async function saveSessionLog(log: SessionLog): Promise<void> {
   await sessionRepo.append(log);
+}
+
+// Orbit sessions
+export async function createOrbitSessionPacket(packet: OrbitSessionPacket): Promise<OrbitStudySession> {
+  const now = Date.now();
+  const session: OrbitStudySession = {
+    id: `os_${now}_${Math.random().toString(36).slice(2, 7)}`,
+    targetLanguage: packet.targetLanguage,
+    packet,
+    packetText: buildOrbitSessionPacketText(packet),
+    status: "packet_ready",
+    createdAt: now,
+    updatedAt: now,
+  };
+
+  await orbitSessionRepo.upsert(session);
+  return session;
+}
+
+export async function getOrbitSessionById(id: string): Promise<OrbitStudySession | undefined> {
+  return orbitSessionRepo.getById(id);
+}
+
+export async function listOrbitSessions(filter?: {
+  language?: string;
+  status?: OrbitStudySession["status"];
+  limit?: number;
+}): Promise<OrbitStudySession[]> {
+  const all = await orbitSessionRepo.getAll();
+  const filtered = all
+    .filter((session) => {
+      if (filter?.language && session.targetLanguage !== filter.language) return false;
+      if (filter?.status && session.status !== filter.status) return false;
+      return true;
+    })
+    .sort((a, b) => b.updatedAt - a.updatedAt);
+
+  if (filter?.limit) {
+    return filtered.slice(0, Math.max(1, Math.floor(filter.limit)));
+  }
+  return filtered;
+}
+
+export async function saveSessionReview(sessionId: string, review: SessionReview): Promise<OrbitStudySession | null> {
+  const found = await orbitSessionRepo.getById(sessionId);
+  if (!found) return null;
+
+  const next: OrbitStudySession = {
+    ...found,
+    review,
+    status: found.storyboard ? "storyboarded" : "reviewed",
+    updatedAt: Date.now(),
+  };
+  await orbitSessionRepo.upsert(next);
+  return next;
+}
+
+export async function saveSessionStoryboard(sessionId: string, storyboard: SessionStoryboard): Promise<OrbitStudySession | null> {
+  const found = await orbitSessionRepo.getById(sessionId);
+  if (!found) return null;
+
+  const next: OrbitStudySession = {
+    ...found,
+    storyboard,
+    status: found.review ? "storyboarded" : found.status,
+    updatedAt: Date.now(),
+  };
+  await orbitSessionRepo.upsert(next);
+  return next;
+}
+
+export async function generateRecallQueue(sessionId: string): Promise<RecallQueueCard[]> {
+  const found = await orbitSessionRepo.getById(sessionId);
+  if (!found) return [];
+
+  const now = Date.now();
+  const cards = generateRecallQueueCardsFromSession(found, now);
+  await Promise.all(cards.map((card) => recallQueueRepo.upsert(card)));
+
+  const next: OrbitStudySession = {
+    ...found,
+    status: "queued",
+    recallQueueGeneratedAt: now,
+    updatedAt: now,
+  };
+  await orbitSessionRepo.upsert(next);
+  return cards;
+}
+
+export async function listRecallQueue(filter?: {
+  dueOnly?: boolean;
+  language?: string;
+}): Promise<RecallQueueCard[]> {
+  const all = await recallQueueRepo.getAll();
+  const now = Date.now();
+  return all
+    .filter((card) => {
+      if (filter?.language && card.language !== filter.language) return false;
+      if (filter?.dueOnly && (card.status !== "pending" || card.dueAt > now)) return false;
+      return true;
+    })
+    .sort((a, b) => a.dueAt - b.dueAt);
+}
+
+export async function completeRecallCard(cardId: string, result?: {
+  prompt?: string;
+  answer?: string;
+}): Promise<RecallQueueCard | null> {
+  const found = await recallQueueRepo.getById(cardId);
+  if (!found) return null;
+
+  const next: RecallQueueCard = {
+    ...found,
+    ...(result?.prompt ? { prompt: result.prompt.trim() } : {}),
+    ...(result?.answer ? { answer: result.answer.trim() } : {}),
+    status: "completed",
+    completedAt: Date.now(),
+  };
+  await recallQueueRepo.upsert(next);
+  return next;
+}
+
+export async function saveWeeklyPatternReport(report: WeeklyPatternReport): Promise<void> {
+  await weeklyReportRepo.upsert(report);
+}
+
+export async function getWeeklyPatternReport(params: {
+  from?: Date;
+  to?: Date;
+  language: string;
+}): Promise<WeeklyPatternReport> {
+  const allSessions = await orbitSessionRepo.getAll();
+  const generated = analyzeWeeklyPatterns({
+    sessions: allSessions,
+    language: params.language,
+    from: params.from,
+    to: params.to,
+  });
+
+  const existing = await weeklyReportRepo.getById(generated.id);
+  if (existing) {
+    const next = {
+      ...existing,
+      ...generated,
+      createdAt: existing.createdAt,
+      updatedAt: Date.now(),
+    };
+    await weeklyReportRepo.upsert(next);
+    return next;
+  }
+
+  await weeklyReportRepo.upsert(generated);
+  return generated;
 }
 
 // Settings (sync access for app bootstrap)
