@@ -6,6 +6,7 @@ import BottomNav from "@/components/BottomNav";
 import PageShell from "@/components/PageShell";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { ArrowUpRight } from "lucide-react";
@@ -16,6 +17,7 @@ const LANGUAGE_OPTIONS = [
 ] as const;
 
 const LEVEL_OPTIONS = ["입문", "초급", "중급", "고급"] as const;
+const CORRECTION_MODE_OPTIONS: Array<UserSettings["defaultCorrectionMode"]> = ["light", "normal"];
 
 const languageLabel = (code: string) => LANGUAGE_OPTIONS.find((option) => option.code === code)?.label || code.toUpperCase();
 
@@ -27,6 +29,9 @@ const SettingsPage: React.FC = () => {
   const [darkMode, setDarkMode] = useState(false);
   const [targetLanguage, setTargetLanguage] = useState<UserSettings["targetLanguage"]>("en");
   const [learnerLevel, setLearnerLevel] = useState<UserSettings["learnerLevel"]>("초급");
+  const [chatgptProjectUrlEn, setChatgptProjectUrlEn] = useState("");
+  const [chatgptProjectUrlJa, setChatgptProjectUrlJa] = useState("");
+  const [defaultCorrectionMode, setDefaultCorrectionMode] = useState<UserSettings["defaultCorrectionMode"]>("light");
   const [migrationRequired, setMigrationRequired] = useState(false);
 
   useEffect(() => {
@@ -34,6 +39,9 @@ const SettingsPage: React.FC = () => {
     setDarkMode(settings.darkMode);
     setTargetLanguage(settings.targetLanguage);
     setLearnerLevel(settings.learnerLevel);
+    setChatgptProjectUrlEn(settings.chatgptProjectUrlEn || "");
+    setChatgptProjectUrlJa(settings.chatgptProjectUrlJa || "");
+    setDefaultCorrectionMode(settings.defaultCorrectionMode || "light");
 
     getStorageStatus().then((status) => {
       setMigrationRequired(status.migrationRequired);
@@ -56,6 +64,40 @@ const SettingsPage: React.FC = () => {
     setLearnerLevel(nextLevel);
     updateSettings({ learnerLevel: nextLevel, mode: modeForLevel(nextLevel) });
     toast.success(`학습 난이도 변경: ${nextLevel}`);
+  };
+
+  const normalizeProjectUrl = (value: string): string => value.trim();
+
+  const isValidProjectUrl = (value: string): boolean => {
+    if (!value.trim()) return true;
+    try {
+      const parsed = new URL(value);
+      return parsed.protocol === "https:";
+    } catch {
+      return false;
+    }
+  };
+
+  const handleSaveProjectUrls = () => {
+    const en = normalizeProjectUrl(chatgptProjectUrlEn);
+    const ja = normalizeProjectUrl(chatgptProjectUrlJa);
+
+    if (!isValidProjectUrl(en) || !isValidProjectUrl(ja)) {
+      toast.error("Project URL은 https:// 로 시작하는 올바른 URL이어야 합니다.");
+      return;
+    }
+
+    updateSettings({
+      chatgptProjectUrlEn: en,
+      chatgptProjectUrlJa: ja,
+    });
+    toast.success("ChatGPT Project URL 저장됨");
+  };
+
+  const handleCorrectionModeChange = (mode: UserSettings["defaultCorrectionMode"]) => {
+    setDefaultCorrectionMode(mode);
+    updateSettings({ defaultCorrectionMode: mode });
+    toast.success(`기본 교정 모드 변경: ${mode}`);
   };
 
   const handleClearData = async () => {
@@ -132,6 +174,54 @@ const SettingsPage: React.FC = () => {
               ))}
             </div>
             <p className="text-xs text-muted-foreground">변경한 언어/레벨은 AI 질문 프롬프트 생성에 즉시 적용됩니다.</p>
+          </div>
+
+          <div className="ui-island ui-card-border rounded-[16px] p-4 shadow-[var(--island-shadow)] space-y-3">
+            <div>
+              <div className="font-medium text-sm">ChatGPT Project URL</div>
+              <div className="text-xs text-muted-foreground">언어별로 바로 열기 링크를 저장합니다.</div>
+            </div>
+            <div className="space-y-2">
+              <label className="text-xs text-muted-foreground">영어 Project URL</label>
+              <Input
+                value={chatgptProjectUrlEn}
+                onChange={(event) => setChatgptProjectUrlEn(event.target.value)}
+                placeholder="https://chatgpt.com/..."
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-xs text-muted-foreground">일본어 Project URL</label>
+              <Input
+                value={chatgptProjectUrlJa}
+                onChange={(event) => setChatgptProjectUrlJa(event.target.value)}
+                placeholder="https://chatgpt.com/..."
+              />
+            </div>
+            <Button type="button" variant="outline" onClick={handleSaveProjectUrls}>
+              Project URL 저장
+            </Button>
+          </div>
+
+          <div className="ui-island ui-card-border rounded-[16px] p-4 shadow-[var(--island-shadow)] space-y-4">
+            <div>
+              <div className="font-medium text-sm">기본 교정 모드</div>
+              <div className="text-xs text-muted-foreground">세션 패킷 생성 시 correction_mode 기본값입니다.</div>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              {CORRECTION_MODE_OPTIONS.map((mode) => (
+                <button
+                  key={mode}
+                  type="button"
+                  onClick={() => handleCorrectionModeChange(mode)}
+                  className={cn(
+                    "rounded-[4px] border border-border/85 bg-secondary px-3 py-2 text-sm transition-colors",
+                    defaultCorrectionMode === mode ? "border-primary bg-primary/10 text-foreground" : "border-border text-muted-foreground hover:text-foreground"
+                  )}
+                >
+                  {mode}
+                </button>
+              ))}
+            </div>
           </div>
 
           <div className="ui-island ui-card-border overflow-hidden rounded-[16px] p-4 shadow-[var(--island-shadow)]">

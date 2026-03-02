@@ -72,6 +72,21 @@ const HomePage: React.FC = () => {
             </div>
           </button>
 
+          <button
+            onClick={() => navigate("/sessions")}
+            className="ui-island relative mb-6 min-h-[72px] w-full overflow-hidden border border-border/80 bg-card p-4 text-start shadow-[0_10px_24px_-18px_rgba(8,11,20,0.36)]"
+          >
+            <div className="relative z-10 flex items-center justify-between gap-3">
+              <div className="font-dm">
+                <div className="text-sm font-ko-bold font-medium">세션 허브</div>
+                <div className="text-xs text-muted-foreground">REVIEW · STORYBOARD · RECALL · WEEKLY</div>
+              </div>
+              <span className="ui-chip border border-border/80 bg-secondary px-3 py-1.5 font-dm text-[11px] text-foreground">
+                OPEN
+              </span>
+            </div>
+          </button>
+
           <h2 className="mb-3 text-lg font-medium font-ko-bold"></h2>
           {todayClip ? (
             <section className="ui-island-strong overflow-hidden font-ko-bold">
